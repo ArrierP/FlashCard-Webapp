@@ -4,9 +4,20 @@ import axios from 'axios';
 // Configure axios globally
 axios.defaults.withCredentials = true;
 // Default to API URL or fallback to localhost:3000 in dev
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:5000';
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL
 axios.defaults.baseURL = API_BASE_URL;
-
+axios.interceptors.request.use(
+  (config) => {
+    const token = localStorage.getItem('memoria_token');
+    if (token) {
+      config.headers.Authorization = `Bearer ${token}`;
+    }
+    return config;
+  },
+  (error) => {
+    return Promise.reject(error);
+  }
+);
 const AuthContext = createContext();
 
 export const AuthProvider = ({ children }) => {
@@ -17,6 +28,12 @@ export const AuthProvider = ({ children }) => {
   // App initialization: check current login status
   useEffect(() => {
     const initializeAuth = async () => {
+      const token = localStorage.getItem('memoria_token');
+      if (!token) {
+        setIsLoading(false);
+        return;
+      }
+
       try {
         setIsLoading(true);
         const response = await axios.get('/api/auth/me');
@@ -25,6 +42,7 @@ export const AuthProvider = ({ children }) => {
         }
       } catch (err) {
         // User not logged in or cookie expired
+        localStorage.removeItem("memoria_token")
         setUser(null);
       } finally {
         setIsLoading(false);
@@ -38,6 +56,9 @@ export const AuthProvider = ({ children }) => {
     setError(null);
     try {
       const response = await axios.post('/api/auth/login', { email, password });
+      if (response) {
+        localStorage.setItem("memoria_token", response.data.token)
+      }
       setUser(response.data.user);
       return { success: true, user: response.data.user };
     } catch (err) {
@@ -52,6 +73,9 @@ export const AuthProvider = ({ children }) => {
     try {
       const response = await axios.post('/api/auth/register', { email, username, password });
       // Optionally login automatically after register
+      if (response.data.token) {
+        localStorage.setItem("memoria_token", response.data.token)
+      }
       await login(email, password);
       return { success: true, user: response.data.user };
     } catch (err) {
@@ -62,13 +86,8 @@ export const AuthProvider = ({ children }) => {
   };
 
   const logout = async () => {
-    try {
-      await axios.post('/api/auth/logout');
-    } catch (err) {
-      console.error('Error logging out:', err);
-    } finally {
-      setUser(null);
-    }
+    localStorage.removeItem("memoria_token")
+    setUser(null);
   };
 
   return (
