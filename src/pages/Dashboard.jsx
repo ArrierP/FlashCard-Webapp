@@ -13,7 +13,9 @@ import {
   FolderPlus,
   ArrowRight,
   Clock,
-  Trash2
+  Trash2,
+  BarChart3,
+  TrendingUp
 } from 'lucide-react';
 
 export default function Dashboard() {
@@ -21,6 +23,15 @@ export default function Dashboard() {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState(null);
   const [searchQuery, setSearchQuery] = useState('');
+
+  // Analytics summary state (Thống kê tiến độ học tập)
+  const [analyticsSummary, setAnalyticsSummary] = useState({
+    totalCards: 0,
+    newCards: 0,
+    learningCards: 0,
+    masteredCards: 0,
+  });
+  const [isAnalyticsLoading, setIsAnalyticsLoading] = useState(true);
 
   // Modal create desk state
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -44,9 +55,32 @@ export default function Dashboard() {
     }
   };
 
+  // Hàm gọi API lấy dữ liệu thống kê tổng quan tiến độ học tập
+  const fetchAnalytics = async () => {
+    try {
+      setIsAnalyticsLoading(true);
+      const response = await axios.get('/api/analytics');
+      if (response.data && response.data.summary) {
+        setAnalyticsSummary(response.data.summary);
+      }
+    } catch (err) {
+      console.error('Error fetching analytics summary:', err);
+    } finally {
+      setIsAnalyticsLoading(false);
+    }
+  };
+
   useEffect(() => {
     fetchDesks();
+    fetchAnalytics();
   }, []);
+
+  // Tính tỷ lệ % tiến độ hiển thị trên Progress Bar
+  const getPercentage = (count) => {
+    const total = analyticsSummary.totalCards || 0;
+    if (!total || total === 0) return 0;
+    return Math.round((count / total) * 100);
+  };
 
   const handleCreateDesk = async (e) => {
     e.preventDefault();
@@ -123,6 +157,120 @@ export default function Dashboard() {
           </button>
         </div>
       </div>
+
+      {/* ==================== KHU VỰC BẢNG ĐIỀU KHIỂN TIẾN ĐỘ HỌC TẬP (ANALYTICS DASHBOARD) ==================== */}
+      <div className="space-y-4">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2.5">
+            <div className="p-2.5 rounded-2xl bg-indigo-50 dark:bg-indigo-950/60 text-indigo-600 dark:text-indigo-400 border border-indigo-200/50 dark:border-indigo-800/50">
+              <BarChart3 className="w-5 h-5" />
+            </div>
+            <div>
+              <h2 className="text-lg font-bold text-slate-900 dark:text-white">
+                Bảng điều khiển tiến độ học tập
+              </h2>
+              <p className="text-xs text-slate-500 dark:text-slate-400">
+                Thống kê trực quan tiến trình ôn tập Spaced Repetition (SRS)
+              </p>
+            </div>
+          </div>
+          <div className="hidden sm:flex items-center gap-1.5 px-3.5 py-1.5 rounded-full text-xs font-semibold bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-slate-600 dark:text-slate-300 shadow-sm">
+            <TrendingUp className="w-3.5 h-3.5 text-indigo-500" />
+            <span>Tổng số thẻ: <strong className="text-slate-900 dark:text-white">{isAnalyticsLoading ? '...' : analyticsSummary.totalCards}</strong></span>
+          </div>
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
+          {/* Thẻ 1 (Thẻ Mới - New): Đếm số thẻ có repetition === 0. Tone màu xám/slate sang trọng */}
+          <div className="group relative rounded-3xl p-5 sm:p-6 bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800/80 hover:border-slate-400 dark:hover:border-slate-700 shadow-sm hover:shadow-xl dark:hover:shadow-slate-900/40 hover:scale-[1.01] transition-all duration-300">
+            <div className="flex items-center justify-between mb-3">
+              <span className="text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">
+                Thẻ Mới (New)
+              </span>
+              <span className="px-2.5 py-1 rounded-full text-xs font-semibold bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 border border-slate-200 dark:border-slate-700">
+                repetition = 0
+              </span>
+            </div>
+
+            <div className="flex items-baseline justify-between gap-2 mb-4">
+              <span className="text-3xl font-extrabold text-slate-900 dark:text-white">
+                {isAnalyticsLoading ? '-' : analyticsSummary.newCards}
+              </span>
+              <span className="text-xs font-semibold text-slate-500 dark:text-slate-400">
+                {getPercentage(analyticsSummary.newCards)}% tổng số
+              </span>
+            </div>
+
+            {/* Progress Bar bo tròn đẹp mắt Tailwind v4 */}
+            <div className="h-2.5 w-full bg-slate-100 dark:bg-slate-800 rounded-full overflow-hidden">
+              <div
+                className="h-full bg-slate-600 dark:bg-slate-400 rounded-full transition-all duration-700 ease-out"
+                style={{ width: `${getPercentage(analyticsSummary.newCards)}%` }}
+              />
+            </div>
+          </div>
+
+          {/* Thẻ 2 (Đang Ôn Luyện - Learning): Đếm số thẻ có repetition > 0 & interval < 7. Tone màu vàng hổ phách (amber) */}
+          <div className="group relative rounded-3xl p-5 sm:p-6 bg-white dark:bg-slate-900 border border-amber-200/70 dark:border-amber-900/40 hover:border-amber-400 dark:hover:border-amber-700 shadow-sm hover:shadow-xl hover:shadow-amber-500/10 dark:hover:shadow-amber-950/30 hover:scale-[1.01] transition-all duration-300">
+            <div className="flex items-center justify-between mb-3">
+              <span className="text-xs font-bold uppercase tracking-wider text-amber-600 dark:text-amber-400">
+                Đang Ôn Luyện (Learning)
+              </span>
+              <span className="px-2.5 py-1 rounded-full text-xs font-semibold bg-amber-50 dark:bg-amber-950/60 text-amber-600 dark:text-amber-400 border border-amber-200/60 dark:border-amber-800/60">
+                interval &lt; 7 ngày
+              </span>
+            </div>
+
+            <div className="flex items-baseline justify-between gap-2 mb-4">
+              <span className="text-3xl font-extrabold text-slate-900 dark:text-white">
+                {isAnalyticsLoading ? '-' : analyticsSummary.learningCards}
+              </span>
+              <span className="text-xs font-semibold text-amber-600 dark:text-amber-400">
+                {getPercentage(analyticsSummary.learningCards)}% tổng số
+              </span>
+            </div>
+
+            {/* Progress Bar bo tròn đẹp mắt Tailwind v4 */}
+            <div className="h-2.5 w-full bg-amber-100 dark:bg-amber-950/60 rounded-full overflow-hidden">
+              <div
+                className="h-full bg-gradient-to-r from-amber-500 to-amber-400 rounded-full transition-all duration-700 ease-out"
+                style={{ width: `${getPercentage(analyticsSummary.learningCards)}%` }}
+              />
+            </div>
+          </div>
+
+          {/* Thẻ 3 (Đã Thuộc Lòng - Mastered): Đếm số thẻ interval >= 7. Tone màu xanh lục bảo (emerald) + Sparkles */}
+          <div className="group relative rounded-3xl p-5 sm:p-6 bg-white dark:bg-slate-900 border border-emerald-200/70 dark:border-emerald-900/40 hover:border-emerald-400 dark:hover:border-emerald-700 shadow-sm hover:shadow-xl hover:shadow-emerald-500/10 dark:hover:shadow-emerald-950/30 hover:scale-[1.01] transition-all duration-300">
+            <div className="flex items-center justify-between mb-3">
+              <span className="inline-flex items-center gap-1.5 text-xs font-bold uppercase tracking-wider text-emerald-600 dark:text-emerald-400">
+                <span>Đã Thuộc Lòng (Mastered)</span>
+                <Sparkles className="w-3.5 h-3.5 text-emerald-500 animate-pulse" />
+              </span>
+              <span className="px-2.5 py-1 rounded-full text-xs font-semibold bg-emerald-50 dark:bg-emerald-950/60 text-emerald-600 dark:text-emerald-400 border border-emerald-200/60 dark:border-emerald-800/60">
+                interval ≥ 7 ngày
+              </span>
+            </div>
+
+            <div className="flex items-baseline justify-between gap-2 mb-4">
+              <span className="text-3xl font-extrabold text-slate-900 dark:text-white">
+                {isAnalyticsLoading ? '-' : analyticsSummary.masteredCards}
+              </span>
+              <span className="text-xs font-semibold text-emerald-600 dark:text-emerald-400">
+                {getPercentage(analyticsSummary.masteredCards)}% tổng số
+              </span>
+            </div>
+
+            {/* Progress Bar bo tròn đẹp mắt Tailwind v4 */}
+            <div className="h-2.5 w-full bg-emerald-100 dark:bg-emerald-950/60 rounded-full overflow-hidden">
+              <div
+                className="h-full bg-gradient-to-r from-emerald-500 to-teal-400 rounded-full transition-all duration-700 ease-out"
+                style={{ width: `${getPercentage(analyticsSummary.masteredCards)}%` }}
+              />
+            </div>
+          </div>
+        </div>
+      </div>
+      {/* ====================================================================================================== */}
 
       {/* Search & Statistics Filter Bar */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">

@@ -31,6 +31,43 @@ export default function DeskDetail() {
   const [exampleMeaning, setExampleMeaning] = useState('');
   const [isCreating, setIsCreating] = useState(false);
 
+  // Trạng thái cho tính năng Điền nhanh bằng AI (AI Auto-fill)
+  const [isAiLoading, setIsAiLoading] = useState(false);
+  const [aiError, setAiError] = useState(null);
+
+  // Hàm gọi API /api/card/ai-generate tự động điền các trường còn lại trên Modal
+  const handleAiAutoFill = async () => {
+    setAiError(null);
+    if (!word.trim()) {
+      setAiError('Vui lòng nhập Từ Vựng trước khi dùng tính năng điền nhanh bằng AI ✨');
+      return;
+    }
+
+    try {
+      setIsAiLoading(true);
+      const response = await axios.post('/api/card/ai-generate', {
+        word: word.trim(),
+        deskId: id,
+      });
+
+      const data = response.data.card || response.data;
+      if (data) {
+        if (data.phonetic) setPhonetic(data.phonetic);
+        if (data.type) setType(data.type);
+        if (data.meaning) setMeaning(data.meaning);
+        if (data.example) setExample(data.example);
+        if (data.exampleMeaning) setExampleMeaning(data.exampleMeaning);
+      }
+    } catch (err) {
+      console.error('Error auto-filling with AI:', err);
+      setAiError(
+        err.response?.data?.message || 'Không thể tạo dữ liệu bằng AI. Vui lòng thử lại.'
+      );
+    } finally {
+      setIsAiLoading(false);
+    }
+  };
+
   const fetchCards = async () => {
     try {
       setIsLoading(true);
@@ -247,35 +284,76 @@ export default function DeskDetail() {
             </div>
 
             <form onSubmit={handleCreateCard} className="space-y-4">
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-xs font-semibold uppercase text-slate-500 dark:text-slate-400 mb-1.5">
-                    Từ Vựng (Word) *
-                  </label>
-                  <input
-                    type="text"
-                    required
-                    placeholder="e.g. Serendipity"
-                    value={word}
-                    onChange={(e) => setWord(e.target.value)}
-                    className="w-full px-4 py-3 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-sm text-slate-900 dark:text-white focus:ring-2 focus:ring-indigo-500"
-                  />
+              {/* Thông báo lỗi nhẹ nhàng bằng màu Rose nếu chưa nhập từ vựng hoặc lỗi API AI */}
+              {aiError && (
+                <div className="flex items-center gap-2.5 p-3.5 rounded-2xl bg-rose-500/10 border border-rose-500/20 text-rose-600 dark:text-rose-400 text-xs font-medium">
+                  <AlertCircle className="w-4 h-4 shrink-0" />
+                  <span>{aiError}</span>
                 </div>
+              )}
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                {/* Ô nhập Từ Vựng (Word) tích hợp nút Điền nhanh bằng AI ✨ */}
+                <div className="sm:col-span-2">
+                  <div className="flex items-center justify-between mb-1.5">
+                    <label className="block text-xs font-semibold uppercase text-slate-500 dark:text-slate-400">
+                      Từ Vựng (Word) *
+                    </label>
+                    <span className="text-[11px] font-medium text-indigo-500 dark:text-indigo-400">
+                      Gõ từ tiếng Anh rồi bấm nút AI bên phải 👉
+                    </span>
+                  </div>
+                  <div className="relative flex items-center">
+                    <input
+                      type="text"
+                      required
+                      placeholder="e.g. Exquisite"
+                      value={word}
+                      onChange={(e) => {
+                        setWord(e.target.value);
+                        if (aiError) setAiError(null);
+                      }}
+                      disabled={isAiLoading}
+                      className="w-full pl-4 pr-44 py-3 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-sm text-slate-900 dark:text-white focus:ring-2 focus:ring-indigo-500 transition-all disabled:opacity-60"
+                    />
+                    <button
+                      type="button"
+                      onClick={handleAiAutoFill}
+                      disabled={isAiLoading || isCreating}
+                      title="Tự động điền đầy đủ phiên âm, loại từ, nghĩa và ví dụ bằng AI"
+                      className="absolute right-1.5 inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-gradient-to-r from-indigo-600 via-purple-600 to-indigo-600 hover:from-indigo-500 hover:to-purple-500 text-white text-xs font-semibold shadow-md shadow-indigo-500/25 active:scale-95 transition-all disabled:opacity-60 cursor-pointer"
+                    >
+                      {isAiLoading ? (
+                        <>
+                          <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                          <span>AI đang tạo...</span>
+                        </>
+                      ) : (
+                        <>
+                          <Sparkles className="w-3.5 h-3.5 animate-pulse" />
+                          <span>Điền nhanh bằng AI ✨</span>
+                        </>
+                      )}
+                    </button>
+                  </div>
+                </div>
+
+                {/* Phiên Âm */}
                 <div>
                   <label className="block text-xs font-semibold uppercase text-slate-500 dark:text-slate-400 mb-1.5">
                     Phiên Âm (Phonetic)
                   </label>
                   <input
                     type="text"
-                    placeholder="e.g. /ˌser.ənˈdɪp.ə.ti/"
+                    placeholder="e.g. /ɪkˈskwɪz.ɪt/"
                     value={phonetic}
                     onChange={(e) => setPhonetic(e.target.value)}
-                    className="w-full px-4 py-3 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-sm text-slate-900 dark:text-white focus:ring-2 focus:ring-indigo-500"
+                    disabled={isAiLoading}
+                    className="w-full px-4 py-3 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-sm text-slate-900 dark:text-white focus:ring-2 focus:ring-indigo-500 disabled:opacity-50 disabled:cursor-not-allowed transition-opacity"
                   />
                 </div>
-              </div>
 
-              <div className="grid grid-cols-2 gap-4">
+                {/* Loại Từ */}
                 <div>
                   <label className="block text-xs font-semibold uppercase text-slate-500 dark:text-slate-400 mb-1.5">
                     Loại Từ (Type) *
@@ -283,7 +361,8 @@ export default function DeskDetail() {
                   <select
                     value={type}
                     onChange={(e) => setType(e.target.value)}
-                    className="w-full px-4 py-3 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-sm text-slate-900 dark:text-white focus:ring-2 focus:ring-indigo-500"
+                    disabled={isAiLoading}
+                    className="w-full px-4 py-3 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-sm text-slate-900 dark:text-white focus:ring-2 focus:ring-indigo-500 disabled:opacity-50 disabled:cursor-not-allowed transition-opacity"
                   >
                     <option value="noun">Danh từ (Noun)</option>
                     <option value="verb">Động từ (Verb)</option>
@@ -292,19 +371,21 @@ export default function DeskDetail() {
                     <option value="phrase">Cụm từ (Phrase)</option>
                   </select>
                 </div>
-                <div>
-                  <label className="block text-xs font-semibold uppercase text-slate-500 dark:text-slate-400 mb-1.5">
-                    Nghĩa Tiếng Việt *
-                  </label>
-                  <input
-                    type="text"
-                    required
-                    placeholder="e.g. Sự tình cờ may mắn"
-                    value={meaning}
-                    onChange={(e) => setMeaning(e.target.value)}
-                    className="w-full px-4 py-3 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-sm text-slate-900 dark:text-white focus:ring-2 focus:ring-indigo-500"
-                  />
-                </div>
+              </div>
+
+              <div>
+                <label className="block text-xs font-semibold uppercase text-slate-500 dark:text-slate-400 mb-1.5">
+                  Nghĩa Tiếng Việt *
+                </label>
+                <input
+                  type="text"
+                  required
+                  placeholder="e.g. Tuyệt đẹp, tinh tế"
+                  value={meaning}
+                  onChange={(e) => setMeaning(e.target.value)}
+                  disabled={isAiLoading}
+                  className="w-full px-4 py-3 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-sm text-slate-900 dark:text-white focus:ring-2 focus:ring-indigo-500 disabled:opacity-50 disabled:cursor-not-allowed transition-opacity"
+                />
               </div>
 
               <div>
@@ -313,10 +394,11 @@ export default function DeskDetail() {
                 </label>
                 <input
                   type="text"
-                  placeholder="e.g. We found this cafe by serendipity."
+                  placeholder="e.g. She wore an exquisite dress."
                   value={example}
                   onChange={(e) => setExample(e.target.value)}
-                  className="w-full px-4 py-3 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-sm text-slate-900 dark:text-white focus:ring-2 focus:ring-indigo-500"
+                  disabled={isAiLoading}
+                  className="w-full px-4 py-3 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-sm text-slate-900 dark:text-white focus:ring-2 focus:ring-indigo-500 disabled:opacity-50 disabled:cursor-not-allowed transition-opacity"
                 />
               </div>
 
@@ -326,10 +408,11 @@ export default function DeskDetail() {
                 </label>
                 <input
                   type="text"
-                  placeholder="e.g. Chúng tôi tình cờ tìm thấy quán cafe này."
+                  placeholder="e.g. Cô ấy mặc một chiếc váy tuyệt đẹp."
                   value={exampleMeaning}
                   onChange={(e) => setExampleMeaning(e.target.value)}
-                  className="w-full px-4 py-3 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-sm text-slate-900 dark:text-white focus:ring-2 focus:ring-indigo-500"
+                  disabled={isAiLoading}
+                  className="w-full px-4 py-3 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-sm text-slate-900 dark:text-white focus:ring-2 focus:ring-indigo-500 disabled:opacity-50 disabled:cursor-not-allowed transition-opacity"
                 />
               </div>
 
