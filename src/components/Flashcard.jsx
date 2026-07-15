@@ -74,10 +74,17 @@ export default function Flashcard({ card, onReview, isReviewing }) {
           <div className="absolute inset-0 w-full h-full backface-hidden rounded-3xl p-8 sm:p-10 flex flex-col justify-between border border-slate-200/80 dark:border-slate-800/80 bg-gradient-to-br from-white via-slate-50 to-slate-100/80 dark:from-slate-900 dark:via-slate-900 dark:to-slate-950 shadow-xl dark:shadow-2xl dark:shadow-indigo-950/20 hover:shadow-2xl transition-shadow">
             {/* Top Bar */}
             <div className="flex items-center justify-between">
-              <span className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-full text-xs font-semibold uppercase tracking-wider bg-indigo-50 dark:bg-indigo-950/60 text-indigo-600 dark:text-indigo-400 border border-indigo-200/50 dark:border-indigo-800/50">
-                <BookOpen className="w-3.5 h-3.5" />
-                {card.type || 'Vocabulary'}
-              </span>
+              {card.cardType === 'idiom' ? (
+                <span className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-full text-xs font-bold uppercase tracking-wider bg-gradient-to-r from-amber-500/15 to-purple-500/15 text-amber-600 dark:text-amber-400 border border-amber-300/50 dark:border-amber-700/50 shadow-sm">
+                  <Sparkles className="w-3.5 h-3.5 text-amber-500 animate-pulse" />
+                  <span>Thành Ngữ • {card.type || 'phrase'}</span>
+                </span>
+              ) : (
+                <span className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-full text-xs font-bold uppercase tracking-wider bg-indigo-50 dark:bg-indigo-950/60 text-indigo-600 dark:text-indigo-400 border border-indigo-200/50 dark:border-indigo-800/50">
+                  <BookOpen className="w-3.5 h-3.5" />
+                  <span>Từ Vựng • {card.type || 'noun'}</span>
+                </span>
+              )}
 
               <button
                 onClick={playPronunciation}
@@ -113,7 +120,7 @@ export default function Flashcard({ card, onReview, isReviewing }) {
             <div className="flex items-center justify-between">
               <span className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-full text-xs font-semibold bg-emerald-50 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-400 border border-emerald-200/50 dark:border-emerald-800/50">
                 <Sparkles className="w-3.5 h-3.5" />
-                Mặt Sau • Giải Nghĩa
+                Mặt Sau • Giải Nghĩa {card.cardType === 'idiom' && 'Thành Ngữ'}
               </span>
 
               <button
@@ -125,8 +132,8 @@ export default function Flashcard({ card, onReview, isReviewing }) {
               </button>
             </div>
 
-            {/* Back Content - Meaning & Example */}
-            <div className="my-auto space-y-5 text-left overflow-y-auto pr-1">
+            {/* Back Content - Meaning, Context & Example */}
+            <div className="my-auto space-y-4 text-left overflow-y-auto pr-1 py-2">
               <div>
                 <div className="flex items-baseline gap-2 mb-1">
                   <h3 className="text-2xl sm:text-3xl font-bold text-slate-900 dark:text-white">
@@ -144,6 +151,18 @@ export default function Flashcard({ card, onReview, isReviewing }) {
                   </p>
                 </div>
               </div>
+
+              {card.context && (
+                <div className="p-4 rounded-2xl bg-amber-50/90 dark:bg-amber-950/50 border border-amber-300/80 dark:border-amber-800/80 space-y-1.5 shadow-sm animate-fade-in">
+                  <p className="text-xs font-bold uppercase tracking-wider text-amber-700 dark:text-amber-300 flex items-center gap-1.5">
+                    <Sparkles className="w-3.5 h-3.5 shrink-0" />
+                    <span>Ngữ cảnh & Nguồn gốc sử dụng</span>
+                  </p>
+                  <p className="text-sm sm:text-base font-medium text-amber-900 dark:text-amber-100 leading-relaxed">
+                    {card.context}
+                  </p>
+                </div>
+              )}
 
               {card.example && (
                 <div className="p-4 rounded-2xl bg-white/80 dark:bg-slate-800/60 border border-slate-200/60 dark:border-slate-700/60 space-y-1.5">

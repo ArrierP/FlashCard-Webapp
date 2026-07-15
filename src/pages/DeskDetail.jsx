@@ -30,6 +30,8 @@ export default function DeskDetail() {
   const [example, setExample] = useState('');
   const [exampleMeaning, setExampleMeaning] = useState('');
   const [isCreating, setIsCreating] = useState(false);
+  const [cardType, setCardType] = useState('vocabulary')
+  const [context, setContext] = useState('')
 
   // Trạng thái cho tính năng Điền nhanh bằng AI (AI Auto-fill)
   const [isAiLoading, setIsAiLoading] = useState(false);
@@ -48,6 +50,7 @@ export default function DeskDetail() {
       const response = await axios.post('/api/card/ai-generate', {
         word: word.trim(),
         deskId: id,
+        cardType: cardType
       });
 
       const data = response.data.card || response.data;
@@ -57,6 +60,7 @@ export default function DeskDetail() {
         if (data.meaning) setMeaning(data.meaning);
         if (data.example) setExample(data.example);
         if (data.exampleMeaning) setExampleMeaning(data.exampleMeaning);
+        if(data.context) setContext(data.context)
       }
     } catch (err) {
       console.error('Error auto-filling with AI:', err);
@@ -96,11 +100,13 @@ export default function DeskDetail() {
       setIsCreating(true);
       const response = await axios.post(`/api/card/create/${id}`, {
         word: word.trim(),
-        phonetic: phonetic.trim() || '/.../',
-        type: type.trim() || 'noun',
+        phonetic: phonetic.trim() || (cardType === 'idiom' ? '' : '/.../'),
+        type: type.trim() || (cardType === 'idiom' ? 'phrase' : 'noun'),
         meaning: meaning.trim(),
         example: example.trim() || 'No example provided',
         exampleMeaning: exampleMeaning.trim() || 'Chưa có bản dịch ví dụ',
+        cardType: cardType,
+        context: context.trim(),
       });
       const newCard = response.data.card;
       if (newCard) {
@@ -116,9 +122,11 @@ export default function DeskDetail() {
       setMeaning('');
       setExample('');
       setExampleMeaning('');
+      setCardType('vocabulary');
+      setContext('');
     } catch (err) {
       console.error('Error creating card:', err);
-      alert(err.response?.data?.message || 'Không thể tạo thẻ từ vựng mới.');
+      alert(err.response?.data?.message || 'Không thể tạo thẻ mới.');
     } finally {
       setIsCreating(false);
     }
@@ -156,20 +164,24 @@ export default function DeskDetail() {
             <span>Quay lại danh sách bộ thẻ</span>
           </Link>
           <h1 className="text-3xl font-extrabold text-slate-900 dark:text-white flex items-center gap-3">
-            <span>Quản Lý Thẻ Từ Vựng</span>
+            <span>Quản Lý Thẻ Từ Vựng & Thành Ngữ</span>
             <span className="text-sm font-semibold px-3 py-1 rounded-full bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 border border-indigo-500/20">
-              {cards.length} từ
+              {cards.length} thẻ
             </span>
           </h1>
         </div>
 
         <div className="flex items-center gap-3">
           <button
-            onClick={() => setIsModalOpen(true)}
+            onClick={() => {
+              setCardType('vocabulary');
+              setType('noun');
+              setIsModalOpen(true);
+            }}
             className="inline-flex items-center gap-2 px-5 py-3 rounded-2xl bg-indigo-600 hover:bg-indigo-500 text-white font-semibold text-sm shadow-lg shadow-indigo-600/25 transition-all cursor-pointer"
           >
             <Plus className="w-4 h-4" />
-            <span>Thêm từ vựng mới</span>
+            <span>Thêm thẻ mới</span>
           </button>
 
           <Link
@@ -197,10 +209,10 @@ export default function DeskDetail() {
         <div className="text-center py-16 px-6 rounded-3xl bg-white/50 dark:bg-slate-900/40 border border-dashed border-slate-300 dark:border-slate-800">
           <BookOpen className="w-12 h-12 text-indigo-500 mx-auto mb-3" />
           <h3 className="text-lg font-bold text-slate-900 dark:text-white mb-1">
-            Bộ thẻ này hiện chưa có từ vựng
+            Bộ thẻ này hiện chưa có từ vựng hay thành ngữ nào
           </h3>
           <p className="text-sm text-slate-500 dark:text-slate-400 max-w-sm mx-auto mb-6">
-            Thêm từ vựng đầu tiên của bạn vào bộ thẻ để sẵn sàng ôn luyện với Spaced Repetition.
+            Thêm từ vựng hoặc thành ngữ đầu tiên của bạn để sẵn sàng ôn luyện với Spaced Repetition.
           </p>
           <button
             onClick={() => setIsModalOpen(true)}
@@ -212,53 +224,87 @@ export default function DeskDetail() {
         </div>
       )}
 
-      {/* List of Vocabulary Cards */}
+      {/* List of Vocabulary & Idiom Cards */}
       {!isLoading && cards.length > 0 && (
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           {cards.map((card) => (
             <div
               key={card._id}
-              className="p-5 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 flex items-start justify-between gap-4 shadow-sm hover:shadow-md transition-shadow"
+              className={`p-5 sm:p-6 rounded-3xl bg-white dark:bg-slate-900 border flex items-start justify-between gap-4 shadow-sm hover:shadow-xl transition-all duration-300 ${
+                card.cardType === 'idiom'
+                  ? 'border-amber-200/80 dark:border-amber-900/50 hover:border-amber-400 dark:hover:border-amber-700'
+                  : 'border-slate-200/80 dark:border-slate-800 hover:border-indigo-400 dark:hover:border-indigo-700'
+              }`}
             >
-              <div className="space-y-2">
-                <div className="flex items-center gap-2">
-                  <span className="text-xs font-bold uppercase tracking-wider px-2.5 py-0.5 rounded-full bg-indigo-50 dark:bg-indigo-950 text-indigo-600 dark:text-indigo-400">
+              <div className="space-y-3 w-full">
+                <div className="flex items-center gap-2 flex-wrap">
+                  <span className="text-xs font-bold uppercase tracking-wider px-2.5 py-0.5 rounded-full bg-indigo-50 dark:bg-indigo-950 text-indigo-600 dark:text-indigo-400 border border-indigo-100 dark:border-indigo-900/50">
                     {card.type || 'noun'}
                   </span>
+                  {card.cardType === 'idiom' ? (
+                    <span className="inline-flex items-center gap-1 text-xs font-bold px-2.5 py-0.5 rounded-full bg-gradient-to-r from-amber-500/15 to-purple-500/15 text-amber-600 dark:text-amber-400 border border-amber-300/50 dark:border-amber-700/50">
+                      <Sparkles className="w-3 h-3 text-amber-500" />
+                      <span>Thành Ngữ (Idiom)</span>
+                    </span>
+                  ) : (
+                    <span className="inline-flex items-center gap-1 text-xs font-bold px-2.5 py-0.5 rounded-full bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 border border-slate-200 dark:border-slate-700">
+                      <span>Từ Vựng</span>
+                    </span>
+                  )}
                   <button
                     onClick={() => playPronunciation(card.word)}
-                    className="p-1.5 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-400 hover:text-indigo-500 transition-colors"
+                    title="Phát âm"
+                    className="p-1.5 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-400 hover:text-indigo-500 transition-colors ml-auto"
                   >
                     <Volume2 className="w-4 h-4" />
                   </button>
                 </div>
 
                 <div>
-                  <h3 className="text-xl font-bold text-slate-900 dark:text-white">
+                  <h3 className="text-2xl font-bold text-slate-900 dark:text-white">
                     {card.word}
                   </h3>
                   {card.phonetic && (
-                    <p className="text-xs text-slate-500 dark:text-slate-400">
+                    <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5 font-medium">
                       {card.phonetic}
                     </p>
                   )}
                 </div>
 
-                <p className="text-base font-semibold text-indigo-600 dark:text-indigo-400">
-                  {card.meaning}
-                </p>
+                <div className="p-3 rounded-2xl bg-indigo-500/5 dark:bg-indigo-500/10 border border-indigo-500/10">
+                  <p className="text-base font-bold text-indigo-600 dark:text-indigo-400">
+                    {card.meaning}
+                  </p>
+                </div>
+
+                {card.context && (
+                  <div className="p-3 rounded-2xl bg-amber-50 dark:bg-amber-950/40 border border-amber-200/70 dark:border-amber-800/60 text-xs text-amber-900 dark:text-amber-200 space-y-1">
+                    <span className="font-bold flex items-center gap-1.5 text-amber-700 dark:text-amber-400">
+                      <Sparkles className="w-3.5 h-3.5 shrink-0" />
+                      <span>Ngữ cảnh & Nguồn gốc:</span>
+                    </span>
+                    <p className="leading-relaxed text-amber-800 dark:text-amber-200/90">{card.context}</p>
+                  </div>
+                )}
 
                 {card.example && (
-                  <p className="text-xs italic text-slate-500 dark:text-slate-400 border-l-2 border-indigo-400/40 pl-2">
-                    "{card.example}"
-                  </p>
+                  <div className="text-xs space-y-1 border-l-2 border-indigo-400/50 pl-3 py-0.5">
+                    <p className="italic font-medium text-slate-700 dark:text-slate-300">
+                      "{card.example}"
+                    </p>
+                    {card.exampleMeaning && (
+                      <p className="text-slate-500 dark:text-slate-400">
+                        — {card.exampleMeaning}
+                      </p>
+                    )}
+                  </div>
                 )}
               </div>
 
               <button
                 onClick={() => handleDeleteCard(card._id)}
-                className="p-2 rounded-xl text-slate-400 hover:text-rose-500 hover:bg-rose-50 dark:hover:bg-rose-950/40 transition-colors"
-                title="Xóa từ"
+                className="p-2 rounded-xl text-slate-400 hover:text-rose-500 hover:bg-rose-50 dark:hover:bg-rose-950/40 transition-colors shrink-0"
+                title="Xóa thẻ"
               >
                 <Trash2 className="w-4 h-4" />
               </button>
@@ -272,8 +318,9 @@ export default function DeskDetail() {
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/70 backdrop-blur-sm animate-fade-in">
           <div className="w-full max-w-lg p-6 sm:p-8 rounded-3xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-2xl max-h-[90vh] overflow-y-auto space-y-6">
             <div className="flex items-center justify-between">
-              <h3 className="text-xl font-bold text-slate-900 dark:text-white">
-                Thêm Từ Vựng Mới
+              <h3 className="text-xl font-bold text-slate-900 dark:text-white flex items-center gap-2">
+                <Sparkles className="w-5 h-5 text-indigo-500" />
+                <span>Thêm Thẻ Mới</span>
               </h3>
               <button
                 onClick={() => setIsModalOpen(false)}
@@ -283,45 +330,79 @@ export default function DeskDetail() {
               </button>
             </div>
 
+            {/* Selector Toggle: Vocabulary vs Idiom */}
+            <div className="flex p-1.5 bg-slate-100 dark:bg-slate-800/80 rounded-2xl border border-slate-200/60 dark:border-slate-700/60">
+              <button
+                type="button"
+                onClick={() => {
+                  setCardType('vocabulary');
+                  if (type === 'phrase') setType('noun');
+                }}
+                className={`flex-1 py-2.5 px-4 rounded-xl text-xs font-bold flex items-center justify-center gap-2 transition-all cursor-pointer ${
+                  cardType === 'vocabulary'
+                    ? 'bg-white dark:bg-slate-900 text-indigo-600 dark:text-indigo-400 shadow-md'
+                    : 'text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
+                }`}
+              >
+                <BookOpen className="w-4 h-4" />
+                <span>Từ Vựng (Vocabulary)</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setCardType('idiom');
+                  setType('phrase');
+                }}
+                className={`flex-1 py-2.5 px-4 rounded-xl text-xs font-bold flex items-center justify-center gap-2 transition-all cursor-pointer ${
+                  cardType === 'idiom'
+                    ? 'bg-gradient-to-r from-amber-500 to-purple-600 text-white shadow-md shadow-amber-500/20'
+                    : 'text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
+                }`}
+              >
+                <Sparkles className="w-4 h-4" />
+                <span>Thành Ngữ (Idiom)</span>
+              </button>
+            </div>
+
             <form onSubmit={handleCreateCard} className="space-y-4">
-              {/* Thông báo lỗi nhẹ nhàng bằng màu Rose nếu chưa nhập từ vựng hoặc lỗi API AI */}
+              {/* Thông báo lỗi nếu chưa nhập hoặc lỗi API AI */}
               {aiError && (
-                <div className="flex items-center gap-2.5 p-3.5 rounded-2xl bg-rose-500/10 border border-rose-500/20 text-rose-600 dark:text-rose-400 text-xs font-medium">
+                <div className="flex items-center gap-2.5 p-3.5 rounded-2xl bg-rose-500/10 border border-rose-500/20 text-rose-600 dark:text-rose-400 text-xs font-medium animate-fade-in">
                   <AlertCircle className="w-4 h-4 shrink-0" />
                   <span>{aiError}</span>
                 </div>
               )}
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                {/* Ô nhập Từ Vựng (Word) tích hợp nút Điền nhanh bằng AI ✨ */}
+                {/* Ô nhập Từ Vựng/Thành Ngữ */}
                 <div className="sm:col-span-2">
                   <div className="flex items-center justify-between mb-1.5">
                     <label className="block text-xs font-semibold uppercase text-slate-500 dark:text-slate-400">
-                      Từ Vựng (Word) *
+                      {cardType === 'idiom' ? 'Thành Ngữ (Idiom) *' : 'Từ Vựng (Word) *'}
                     </label>
                     <span className="text-[11px] font-medium text-indigo-500 dark:text-indigo-400">
-                      Gõ từ tiếng Anh rồi bấm nút AI bên phải 👉
+                      Nhập từ/cụm rồi bấm AI bên phải 👉
                     </span>
                   </div>
                   <div className="relative flex items-center">
                     <input
                       type="text"
                       required
-                      placeholder="e.g. Exquisite"
+                      placeholder={cardType === 'idiom' ? 'e.g. Bite the bullet, Break the ice...' : 'e.g. Exquisite, Resilient...'}
                       value={word}
                       onChange={(e) => {
                         setWord(e.target.value);
                         if (aiError) setAiError(null);
                       }}
                       disabled={isAiLoading}
-                      className="w-full pl-4 pr-44 py-3 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-sm text-slate-900 dark:text-white focus:ring-2 focus:ring-indigo-500 transition-all disabled:opacity-60"
+                      className="w-full pl-4 pr-48 py-3 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-sm text-slate-900 dark:text-white focus:ring-2 focus:ring-indigo-500 transition-all disabled:opacity-60"
                     />
                     <button
                       type="button"
                       onClick={handleAiAutoFill}
                       disabled={isAiLoading || isCreating}
-                      title="Tự động điền đầy đủ phiên âm, loại từ, nghĩa và ví dụ bằng AI"
-                      className="absolute right-1.5 inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-gradient-to-r from-indigo-600 via-purple-600 to-indigo-600 hover:from-indigo-500 hover:to-purple-500 text-white text-xs font-semibold shadow-md shadow-indigo-500/25 active:scale-95 transition-all disabled:opacity-60 cursor-pointer"
+                      title="Tự động phân tích và điền đầy đủ bằng AI"
+                      className="absolute right-1.5 inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg bg-gradient-to-r from-indigo-600 via-purple-600 to-indigo-600 hover:from-indigo-500 hover:to-purple-500 text-white text-xs font-semibold shadow-md shadow-indigo-500/25 active:scale-95 transition-all disabled:opacity-60 cursor-pointer"
                     >
                       {isAiLoading ? (
                         <>
@@ -331,7 +412,7 @@ export default function DeskDetail() {
                       ) : (
                         <>
                           <Sparkles className="w-3.5 h-3.5 animate-pulse" />
-                          <span>Điền nhanh bằng AI ✨</span>
+                          <span>{cardType === 'idiom' ? 'AI Phân Tích Idiom ✨' : 'AI Điền Nhanh ✨'}</span>
                         </>
                       )}
                     </button>
@@ -345,7 +426,7 @@ export default function DeskDetail() {
                   </label>
                   <input
                     type="text"
-                    placeholder="e.g. /ɪkˈskwɪz.ɪt/"
+                    placeholder={cardType === 'idiom' ? 'e.g. /baɪt ðə ˈbʊl.ɪt/' : 'e.g. /ɪkˈskwɪz.ɪt/'}
                     value={phonetic}
                     onChange={(e) => setPhonetic(e.target.value)}
                     disabled={isAiLoading}
@@ -368,7 +449,7 @@ export default function DeskDetail() {
                     <option value="verb">Động từ (Verb)</option>
                     <option value="adj">Tính từ (Adjective)</option>
                     <option value="adv">Trạng từ (Adverb)</option>
-                    <option value="phrase">Cụm từ (Phrase)</option>
+                    <option value="phrase">Cụm từ / Thành ngữ (Phrase)</option>
                   </select>
                 </div>
               </div>
@@ -380,7 +461,7 @@ export default function DeskDetail() {
                 <input
                   type="text"
                   required
-                  placeholder="e.g. Tuyệt đẹp, tinh tế"
+                  placeholder={cardType === 'idiom' ? 'e.g. Cắn răng chịu đựng, vượt qua khó khăn' : 'e.g. Tuyệt đẹp, tinh tế'}
                   value={meaning}
                   onChange={(e) => setMeaning(e.target.value)}
                   disabled={isAiLoading}
@@ -388,13 +469,31 @@ export default function DeskDetail() {
                 />
               </div>
 
+              {/* Ngữ cảnh / Nguồn gốc (Context) - Hiển thị ưu tiên khi là Idiom hoặc khi có context */}
+              {(cardType === 'idiom' || context) && (
+                <div className="animate-fade-in">
+                  <label className="block text-xs font-semibold uppercase text-amber-600 dark:text-amber-400 mb-1.5 flex items-center gap-1.5">
+                    <Sparkles className="w-3.5 h-3.5" />
+                    <span>Ngữ cảnh / Nguồn gốc (Context)</span>
+                  </label>
+                  <textarea
+                    rows={2}
+                    placeholder="e.g. Giải thích ngắn gọn về nguồn gốc hoặc tình huống nên sử dụng thành ngữ này..."
+                    value={context}
+                    onChange={(e) => setContext(e.target.value)}
+                    disabled={isAiLoading}
+                    className="w-full px-4 py-3 rounded-xl bg-amber-50/50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800/80 text-sm text-slate-900 dark:text-white focus:ring-2 focus:ring-amber-500 disabled:opacity-50 disabled:cursor-not-allowed transition-opacity resize-none"
+                  />
+                </div>
+              )}
+
               <div>
                 <label className="block text-xs font-semibold uppercase text-slate-500 dark:text-slate-400 mb-1.5">
                   Câu Ví Dụ (Example)
                 </label>
                 <input
                   type="text"
-                  placeholder="e.g. She wore an exquisite dress."
+                  placeholder={cardType === 'idiom' ? 'e.g. I decided to bite the bullet and go to the dentist.' : 'e.g. She wore an exquisite dress.'}
                   value={example}
                   onChange={(e) => setExample(e.target.value)}
                   disabled={isAiLoading}
@@ -408,7 +507,7 @@ export default function DeskDetail() {
                 </label>
                 <input
                   type="text"
-                  placeholder="e.g. Cô ấy mặc một chiếc váy tuyệt đẹp."
+                  placeholder={cardType === 'idiom' ? 'e.g. Tôi quyết định cắn răng chịu đựng để đi đến nha sĩ.' : 'e.g. Cô ấy mặc một chiếc váy tuyệt đẹp.'}
                   value={exampleMeaning}
                   onChange={(e) => setExampleMeaning(e.target.value)}
                   disabled={isAiLoading}
@@ -427,10 +526,10 @@ export default function DeskDetail() {
                 <button
                   type="submit"
                   disabled={isCreating}
-                  className="inline-flex items-center gap-2 px-6 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white text-sm font-semibold shadow-md disabled:opacity-60 transition-colors"
+                  className="inline-flex items-center gap-2 px-6 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white text-sm font-semibold shadow-md disabled:opacity-60 transition-colors cursor-pointer"
                 >
                   {isCreating && <Loader2 className="w-4 h-4 animate-spin" />}
-                  <span>Lưu Thẻ</span>
+                  <span>{cardType === 'idiom' ? 'Lưu Thành Ngữ' : 'Lưu Từ Vựng'}</span>
                 </button>
               </div>
             </form>
